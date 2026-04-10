@@ -1,0 +1,473 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/divyankapawaskar/splink-workshop-binder/blob/main/USE%20THIS%20DEMO%20FILE\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "SSNguXnGZ-m-"
+      },
+      "outputs": [],
+      "source": [
+        "!pip install splink\n",
+        "\n",
+        "# Import necessary python packages\n",
+        "import pandas as pd\n",
+        "import splink\n",
+        "import numpy as np\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "\n",
+        "#### Import datasets to be linked ----------------------------------------------\n",
+        "\n",
+        "# Load NY crash dataset\n",
+        "#df_crash = pd.read_csv(\"/synthetic_crash.csv\", index_col = 0)\n",
+        "df_crash = pd.read_csv(\"/synthetic_crash.csv\", index_col = 0)\n",
+        "\n",
+        "# Load NY hospital records dataset\n",
+        "#df_hosp = pd.read_csv(\"Synthetic Dataset/synthetic hosp dataset.csv\", index_col = 0)\n",
+        "df_hosp = pd.read_csv(\"/synthetic_hosp.csv\", index_col = 0)\n",
+        "\n",
+        "# View crash and hcup data\n",
+        "df_crash.head\n",
+        "df_hosp.head\n",
+        "\n",
+        "# Check dimensions of datasets\n",
+        "print(f\"\\nCrash records: {df_crash.shape[0]} rows x {df_crash.shape[1]} columns\")\n",
+        "print(f\"Hospital records: {df_hosp.shape[0]} rows x {df_hosp.shape[1]} columns\")\n"
+      ],
+      "metadata": {
+        "id": "Vag-d4EuEPty"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Step 3: Rename columns so both datasets share the same column names for linkage\n",
+        "# Crash columns: record_id, crash_id, first_name, last_name, sex, age,\n",
+        "#                date_of_birth, role, crash_date, crash_hour, county, state,\n",
+        "#                vehicle_type, vehicle_make\n",
+        "\n",
+        "df_crash.rename(columns={\n",
+        "    'record_id':    'unique_id',\n",
+        "    'first_name':   'firstnamef2',\n",
+        "    'last_name':    'lastnamef2',\n",
+        "    'gender':          'sex',\n",
+        "    'age':          'age',\n",
+        "    'bday':'dob',\n",
+        "    'crash_date':   'admit_date',\n",
+        "    'crash_hour':   'admit_hr',\n",
+        "    'county':       'county',\n",
+        "    'role':         'role',\n",
+        "    'state':        'state',\n",
+        "}, inplace=True)\n",
+        "\n",
+        "# Hospital columns: patient_record_id, first_name, last_name, sex, age,\n",
+        "#                   date_of_birth, arrival_date, arrival_hour, county, hospital_name\n",
+        "\n",
+        "df_hosp.rename(columns={\n",
+        "    'patient_record_id': 'unique_id',\n",
+        "    'first_name':        'firstnamef2',\n",
+        "    'last_name':         'lastnamef2',\n",
+        "    'gender':               'sex',\n",
+        "    'age':               'age',\n",
+        "    'bday':     'dob',\n",
+        "    'crash_date':      'admit_date',\n",
+        "    'crash_hour':      'admit_hr',\n",
+        "    'county':            'county',\n",
+        "}, inplace=True)\n",
+        "\n",
+        "# Check that column names match\n",
+        "df_crash.head(2)\n",
+        "df_hosp.head(2)\n"
+      ],
+      "metadata": {
+        "id": "krbL0ldZEYG-"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Step 4: Check and convert data types for each column\n",
+        "# Best practice is to convert everything to strings or numeric types\n",
+        "print(df_crash.dtypes)\n",
+        "print(df_hosp.dtypes)\n",
+        "\n",
+        "\n",
+        "\n",
+        "# Step 5: Convert columns to correct types\n",
+        "string_cols = ['firstnamef2', 'lastnamef2', 'sex', 'dob', 'admit_date', 'county', 'role', 'state']\n",
+        "int_cols    = ['age', 'admit_hr']\n",
+        "\n",
+        "for col in string_cols:\n",
+        "    if col in df_crash.columns:\n",
+        "        df_crash[col] = df_crash[col].astype('string')\n",
+        "    if col in df_hosp.columns:\n",
+        "        df_hosp[col] = df_hosp[col].astype('string')\n",
+        "\n",
+        "for col in int_cols:\n",
+        "    if col in df_crash.columns:\n",
+        "        df_crash[col] = pd.to_numeric(df_crash[col], errors='coerce').astype('Int64')\n",
+        "    if col in df_hosp.columns:\n",
+        "        df_hosp[col] = pd.to_numeric(df_hosp[col], errors='coerce').astype('Int64')\n",
+        "\n",
+        "print(df_crash.dtypes)\n",
+        "print(df_hosp.dtypes)\n",
+        "\n",
+        "#### Ensure datasets have matching fields, column names, and data types---------"
+      ],
+      "metadata": {
+        "id": "u0TNX8JSEgvh"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Step 6\n",
+        "#Match crash and hosp sex\n",
+        "\n",
+        "df_hosp['sex'] = df_hosp['sex'].astype('string').replace({'Male': 'M', 'Female': 'F'})\n",
+        "\n",
+        "#lowercase 'county'\n",
+        "\n",
+        "for _df in (df_crash, df_hosp):\n",
+        "    _df['county'] = _df['county'].str.lower()\n",
+        "\n",
+        "#Standardize date formats\n",
+        "df_crash['admit_date'] = pd.to_datetime(df_crash['admit_date'], errors='coerce').dt.strftime('%Y-%m-%d')\n",
+        "df_hosp['admit_date']  = pd.to_datetime(df_hosp['admit_date'],  errors='coerce').dt.strftime('%Y-%m-%d')\n",
+        "\n",
+        "df_crash['dob'] = pd.to_datetime(df_crash['dob'], errors='coerce').dt.strftime('%Y-%m-%d')\n",
+        "df_hosp['dob']  = pd.to_datetime(df_hosp['dob'],  errors='coerce').dt.strftime('%Y-%m-%d')\n",
+        "\n",
+        "# %%\n",
+        "# Step 7: Add source markers and splink IDs\n",
+        "df_crash['unique_id'] = 'crash_' + df_crash.index.astype(str)\n",
+        "df_hosp['unique_id']  = 'hosp_'  + df_hosp.index.astype(str)\n",
+        "\n",
+        "df_crash['source'] = 'crash'\n",
+        "df_hosp['source']  = 'hosp'\n",
+        "\n",
+        "# Verify that all columns are now numeric or string, and match between datasets\n",
+        "df_crash.dtypes\n",
+        "df_hosp.dtypes\n"
+      ],
+      "metadata": {
+        "id": "C0rKyksFEnLQ"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Import splink modules\n",
+        "from splink import DuckDBAPI\n",
+        "from splink.exploratory import completeness_chart\n",
+        "from splink.exploratory import profile_columns\n",
+        "\n",
+        "#### Generate and inspect charts to understand your data -----------------------\n",
+        "\n",
+        "# Completeness Chart -- check data missingness and completeness\n",
+        "completeness_chart(\n",
+        "    [df_crash, df_hosp],\n",
+        "    db_api = DuckDBAPI(),\n",
+        "    table_names_for_chart = [\"crash\", \"hosp\"]).save(\"completeness_chart.html\")\n",
+        "\n",
+        "# Profile Columns Charts -- shows distributions of values for each variable\n",
+        "profile_columns(df_crash, db_api = DuckDBAPI()).save(\"profile_columns_crash.html\")\n",
+        "profile_columns(df_hosp, db_api = DuckDBAPI()).save(\"profile_columns_hcup.html\")\n",
+        "\n",
+        "# Import Splink modules\n",
+        "from splink import block_on\n",
+        "from splink.blocking_analysis import cumulative_comparisons_to_be_scored_from_blocking_rules_chart\n",
+        "import splink.comparison_library as cl\n",
+        "from splink import DuckDBAPI, Linker, SettingsCreator, block_on\n",
+        "\n",
+        "# Choose API\n",
+        "db_api = DuckDBAPI()"
+      ],
+      "metadata": {
+        "id": "C2jPCXbgEsXy"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#### Define Blocking Rules to be used in Linkage -------------------------------\n",
+        "\n",
+        "# Ex: if blocking on month, we are ONLY considering matches where the \"month\" field matches exactly\n",
+        "# Good blocking rules save on computation, poor blocking rules can result in too many comparisons, potentially crashing your software\n",
+        "\n",
+        "blocking_rules = [\n",
+        "    block_on('lastnamef2', 'age'),\n",
+        "    block_on('dob', 'age', 'sex'),\n",
+        "    block_on('dob', 'county'),\n",
+        "    block_on('firstnamef2', 'county'),\n",
+        "    block_on('firstnamef2', 'lastnamef2')\n",
+        "]\n",
+        "\n",
+        "\n",
+        "# Cumulative comparisons chart -- use to assess your blocking rules\n",
+        "# Try to keep down the cumulative number of comparisons for computational efficiency\n",
+        "cumulative_comparisons_to_be_scored_from_blocking_rules_chart(\n",
+        "    table_or_tables = [df_crash, df_hosp],\n",
+        "    blocking_rules = blocking_rules,\n",
+        "    db_api = db_api,\n",
+        "    link_type = 'link_only',\n",
+        "    unique_id_column_name = 'unique_id',\n",
+        "    source_dataset_column_name = 'source').save(\"cumulative_comparisons.html\")"
+      ],
+      "metadata": {
+        "id": "4dMBkSpBEx1Q"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Choose comparison methods you wish to use (e.g. ExactMatch)\n",
+        "comparisons = [\n",
+        "        cl.ExactMatch('firstnamef2'), # add jaro winkler\n",
+        "        cl.ExactMatch('lastnamef2'),\n",
+        "        cl.ExactMatch('sex'),\n",
+        "        cl.ExactMatch('dob'),\n",
+        "        cl.ExactMatch('age'),\n",
+        "        cl.ExactMatch('county'),\n",
+        "        cl.ExactMatch('admit_date'),\n",
+        "        cl.ExactMatch('admit_hr'), # Changed from 'admit_hour' to 'admit_hr'\n",
+        "        #admit_date_comp,\n",
+        "        #admit_hour_comp,\n",
+        "    ]\n",
+        "    #### Choose Comparison methods for each linkage variable -----------------------\n"
+      ],
+      "metadata": {
+        "id": "40KKyYidE20s"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#### Put together settings and create Linker object ----------------------------\n",
+        "\n",
+        "# Step 12: Define full model settings\n",
+        "model_settings = SettingsCreator(\n",
+        "    unique_id_column_name = 'unique_id',\n",
+        "    link_type='link_only',\n",
+        "    blocking_rules_to_generate_predictions=blocking_rules,\n",
+        "    comparisons=comparisons,\n",
+        "    retain_intermediate_calculation_columns=True,\n",
+        ")\n",
+        "\n",
+        "linker = Linker(\n",
+        "    [df_crash, df_hosp],\n",
+        "    model_settings,\n",
+        "    db_api = DuckDBAPI()\n",
+        ")\n",
+        "\n",
+        "#### Parameter Estimation ------------------------------------------------------\n",
+        "\n",
+        "# Step 13: Pre-training — estimate lambda (probability two random records match)\n",
+        "deterministic_rules = [\n",
+        "    block_on('firstnamef2', 'lastnamef2'),\n",
+        "    block_on('dob', 'age', 'sex'),\n",
+        "    block_on('lastnamef2', 'age'),\n",
+        "]\n",
+        "\n",
+        "linker.training.estimate_probability_two_random_records_match(\n",
+        "    deterministic_rules, recall=0.8\n",
+        ")\n",
+        "\n",
+        "# Step 14: Pre-training — estimate u probabilities using random sampling\n",
+        "# Estimate the prior using a direct estimation technique\n",
+        "# It's recommended to set max pairs high (e.g. 1e7 or more)\n",
+        "# Estimate U probabilities with random sampling\n",
+        "linker.training.estimate_u_using_random_sampling(max_pairs=1e7)\n"
+      ],
+      "metadata": {
+        "id": "Aw1W1r_OFGJP"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Step 15: EM Training — estimate m probabilities\n",
+        "\n",
+        "# Estimate M probabilities with EM algorithm -- requires multiple sessions\n",
+        "# Each session blocks on different variables so all comparisons get trained\n",
+        "df_crash = df_crash.rename(columns={'splink_id': 'unique_id'})\n",
+        "df_hosp  = df_hosp.rename(columns={'splink_id': 'unique_id'})\n"
+      ],
+      "metadata": {
+        "id": "QeifgXCVFNSe"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#Training sessions\n",
+        "\n",
+        "\n",
+        "session_1 = linker.training.estimate_parameters_using_expectation_maximisation(\n",
+        "\n",
+        "block_on('lastnamef2', 'age'), estimate_without_term_frequencies=True\n",
+        "\n",
+        ")\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "zSWtcgnhdYTw"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "session_2 = linker.training.estimate_parameters_using_expectation_maximisation(\n",
+        "\n",
+        "block_on('firstnamef2', 'county'), estimate_without_term_frequencies=True\n",
+        "\n",
+        ")\n"
+      ],
+      "metadata": {
+        "id": "o1KvjV9FPOsu"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "session_3 = linker.training.estimate_parameters_using_expectation_maximisation(\n",
+        "\n",
+        "block_on('firstnamef2', 'lastnamef2'), estimate_without_term_frequencies=True\n",
+        "\n",
+        ")\n"
+      ],
+      "metadata": {
+        "id": "afrOrjBQPVVd"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Step 16: Visualize model parameters\n",
+        "\n",
+        "linker.evaluation.unlinkables_chart()"
+      ],
+      "metadata": {
+        "id": "DDNFGylKdACO"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "linker.visualisations.match_weights_chart()\n"
+      ],
+      "metadata": {
+        "id": "QrnKnQS6dXFW"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "linker.visualisations.m_u_parameters_chart()"
+      ],
+      "metadata": {
+        "id": "0kkhIgm8QQ9t"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Step 17: Predict — run linkage and get match probabilities (all blocked pairs)\n",
+        "df_predictions = linker.inference.predict()\n",
+        "df_predictions.as_pandas_dataframe(limit=5)"
+      ],
+      "metadata": {
+        "id": "7B3miViuR2y1"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df_filtered = df_predictions_pd[df_predictions_pd['match_probability'] >= 0.8]\n",
+        "\n",
+        "cols_keep = [\n",
+        "    'unique_id_l', 'unique_id_r',\n",
+        "    'match_probability', 'match_weight', 'match_key',\n",
+        "    'firstnamef2_l', 'lastnamef2_l', 'firstnamef2_r', 'lastnamef2_r',\n",
+        "    'dob_l', 'sex_l', 'age_l',\n",
+        "    'dob_r', 'sex_r', 'age_r',\n",
+        "    'county_l', 'county_r'\n",
+        "    'role_l', 'role_r',\n",
+        "    'admit_date_l', 'admit_date_r',\n",
+        "    'admit_hr_l', 'admit_hr_r',\n",
+        "]\n",
+        "\n",
+        "df_filtered = df_filtered[[c for c in cols_keep if c in df_filtered.columns]]\n",
+        "df_filtered.to_csv('synthetic_linkage_results.csv', index=False)\n",
+        "print(f\"Matched records saved: {len(df_filtered)} rows\")"
+      ],
+      "metadata": {
+        "id": "kgGZT4mbTTwo"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
