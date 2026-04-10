@@ -1,4 +1,4 @@
-record_id,first_name,last_name,gender,age,bday,role,crash_date,crash_hour,county,state,zip
+record_id,first_name,last_name,gender,age,bday,role,admit_date,admit_hour,county,state,zip
 1,Kenneth,Davis,Male,19.0,03/24/2005,Passenger,2024-02-24,0,WESTCHESTER,NY,
 2,Edward,Thompson,Female,55.0,09/04/1969,Driver,2024-07-14,5,QUEENS,NY,14604.0
 3,Sandra,Harris,Male,61.0,04/22/1963,Driver,2024-06-16,23,KINGS,NY,11201.0
